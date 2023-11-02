@@ -31,21 +31,28 @@ func (dc *DockerClient) getHttpClient() http.Client {
 	return httpc
 }
 
-func (dc *DockerClient) GetContainers() ([]Container, error) {
+func (dc *DockerClient) Get(path string) ([]byte, error) {
+	client := dc.getHttpClient()
 
-	sd := dc.getHttpClient()
-	resp, err := sd.Get("http://localhost/containers/json")
+	resp, err := client.Get("http://localhost" + path)
+
 	if err != nil {
-		fmt.Println("Failed to parse response")
-		return []Container{}, err
+		return make([]byte, 0), err
 	}
 
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 
+	return body, nil
+}
+
+func (dc *DockerClient) GetContainers() ([]Container, error) {
+
+	resp, err := dc.Get("/containers/json")
+
 	var containers []Container
-	err = json.Unmarshal(body, &containers)
+	err = json.Unmarshal(resp, &containers)
 
 	if err != nil {
 		fmt.Println("Error: ", err)
@@ -55,24 +62,39 @@ func (dc *DockerClient) GetContainers() ([]Container, error) {
 	return containers, nil
 }
 
-type Port struct {
-	IP          string `json:"IP"`
-	PrivatePort int    `json:"PrivatePort"`
-	PublicPort  int    `json:"PublicPort"`
-	Type        string `json:"Type"`
-}
+func (dc *DockerClient) GetRunningProcesses(id string) ([]Proccess, error) {
 
-type Container struct {
-	ID         string   `json:"Id"`
-	Names      []string `json:"Names"`
-	Image      string   `json:"Image"`
-	ImageID    string   `json:"ImageID"`
-	Command    string   `json:"Command"`
-	Created    int64    `json:"Created"`
-	Ports      []Port   `json:"Ports"`
-	State      string   `json:"State"`
-	Status     string   `json:"Status"`
-	HostConfig struct {
-		NetworkMode string `json:"NetworkMode"`
-	} `json:"HostConfig"`
+	resp, err := dc.Get("/containers/" + id + "/top")
+
+	if err != nil {
+		return make([]Proccess, 0), err
+	}
+
+	fmt.Println(string(resp))
+
+	var processesResponse ProcessesResponse
+
+	err = json.Unmarshal(resp, &processesResponse)
+
+	if err != nil {
+		return make([]Proccess, 0), err
+	}
+
+	processes := make([]Proccess, len(processesResponse.Processes))
+
+	for _, v := range processesResponse.Processes {
+		proces := Proccess{
+			UniqueId:  v[0],
+			ProcessId: v[1],
+			PPID:      v[2],
+			C:         v[3],
+			TTY:       v[4],
+			TIME:      v[5],
+			CMD:       v[6],
+		}
+
+		processes = append(processes, proces)
+	}
+
+	return processes, nil
 }

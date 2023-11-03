@@ -58,3 +58,49 @@ func TestParseStatusLine(t *testing.T) {
 		}
 	})
 }
+
+func TestHeaderParsing(t *testing.T) {
+	t.Run("Header parsing is successful", func(t *testing.T) {
+		rawHeader := "Content-Type: application/json"
+		key, value, err := parseHeader(rawHeader)
+
+		if err != nil {
+			t.Errorf("Did not expect to fail got %s", err)
+		}
+
+		if key != "Content-Type" {
+			t.Errorf("got %s want %s", key, "Content-Type")
+		}
+
+		if value != "application/json" {
+			t.Errorf("got %s want %s", value, "application/json")
+		}
+	})
+
+	t.Run("Header fails because of missing key", func(t *testing.T) {
+		rawHeader := ": application/json"
+		_, _, err := parseHeader(rawHeader)
+
+		if err != InvalidHeaderFormat {
+			t.Errorf("got %s want %s", err, InvalidHeaderFormat)
+		}
+	})
+
+	t.Run("Header fails because of missing value", func(t *testing.T) {
+		rawHeader := "Content-Type: "
+		_, _, err := parseHeader(rawHeader)
+
+		if err != InvalidHeaderFormat {
+			t.Errorf("got %s want %s", err, InvalidHeaderFormat)
+		}
+	})
+
+	t.Run("Header fails because it is not possible to split into key and value", func(t *testing.T) {
+		rawHeader := "Content-Type application/json"
+		_, _, err := parseHeader(rawHeader)
+
+		if err != InvalidHeaderFormat {
+			t.Errorf("got %s want %s", err, InvalidHeaderFormat)
+		}
+	})
+}

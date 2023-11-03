@@ -20,6 +20,8 @@ var UnsupportedHttpVersion = errors.New("Unsupported HTTP Version")
 var IncompleteStatusLine = errors.New("Incomplete StatusLine. Needs 3 parts")
 var StatusCodeOutsideOfRange = errors.New("Statuscode is outside of allowed range 100-599")
 
+var InvalidHeaderFormat = errors.New("Invalid Header Format detected. Expected Format: \"key: value\"")
+
 func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 
 	socket, err := dial(docker_socket)
@@ -76,6 +78,26 @@ func parseStatusLine(payload string) (StatusLine, error) {
 	return sl, nil
 }
 
+func parseHeader(rawHeader string) (string, string, error) {
+	headers_split := strings.SplitN(rawHeader, ":", 2)
+
+	if len(headers_split) < 2 {
+		return "", "", InvalidHeaderFormat
+	}
+
+	key := strings.TrimSpace(headers_split[0])
+	value := strings.TrimSpace(headers_split[1])
+
+	if len(key) == 0 {
+		return "", "", InvalidHeaderFormat
+	}
+
+	if len(value) == 0 {
+		return "", "", InvalidHeaderFormat
+	}
+	return key, value, nil
+}
+
 func listen(conn net.Conn, wg *sync.WaitGroup) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
@@ -111,10 +133,10 @@ func listen(conn net.Conn, wg *sync.WaitGroup) {
 		} else if line != "" && parsing_headers {
 			slog.Debug("Header", "header", line)
 
-			headers_split := strings.SplitN(line, ":", 2)
-			key := headers_split[0]
-			value := headers_split[1]
-
+			key, value, err := parseHeader(line)
+			if err != nil {
+				slog.Error("Error when parsing header", "err", err, "line", line)
+			}
 			headers[key] = value
 		}
 

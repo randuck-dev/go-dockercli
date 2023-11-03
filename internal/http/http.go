@@ -1,7 +1,8 @@
-package docker
+package http
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -10,6 +11,14 @@ import (
 	"strings"
 	"sync"
 )
+
+const (
+	HTTP11 = "HTTP/1.1"
+)
+
+var UnsupportedHttpVersion = errors.New("Unsupported HTTP Version")
+var IncompleteStatusLine = errors.New("Incomplete StatusLine. Needs 3 parts")
+var StatusCodeOutsideOfRange = errors.New("Statuscode is outside of allowed range 100-599")
 
 func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 
@@ -34,6 +43,39 @@ func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 	wg.Wait()
 }
 
+func parseStatusLine(payload string) (StatusLine, error) {
+
+	split_line := strings.Split(payload, " ")
+	if len(split_line) != 3 {
+		return StatusLine{}, IncompleteStatusLine
+	}
+
+	httpVersion := split_line[0]
+
+	if httpVersion != HTTP11 {
+		return StatusLine{}, UnsupportedHttpVersion
+	}
+
+	status_code, err := strconv.ParseUint(split_line[1], 10, 16)
+	if err != nil {
+		slog.Error("Error occured while parsing status code status line", "line", payload)
+		return StatusLine{}, err
+	}
+
+	if status_code < 100 || status_code > 599 {
+		return StatusLine{}, StatusCodeOutsideOfRange
+	}
+
+	sl := StatusLine{
+		split_line[0],
+		uint16(status_code),
+		split_line[2],
+	}
+
+	slog.Info("parsed status line", "status_line", sl)
+	return sl, nil
+}
+
 func listen(conn net.Conn, wg *sync.WaitGroup) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
@@ -52,20 +94,12 @@ func listen(conn net.Conn, wg *sync.WaitGroup) {
 			return
 		}
 		if current_line == 0 {
-			// Parse the status line
-			split_line := strings.Split(line, " ")
-			status_code, err := strconv.ParseUint(split_line[1], 10, 16)
+			sl, err := parseStatusLine(line)
 			if err != nil {
-				slog.Error("Error occured while parsing status code status line", "line", line)
+				slog.Error("Error when parsing status line", "err", err, "line", line)
 				return
 			}
-			sl := StatusLine{
-				split_line[0],
-				uint16(status_code),
-				split_line[2],
-			}
-
-			slog.Info("parsed status line", "status_line", sl)
+			slog.Info("Parsed status line", "statusline", sl)
 			current_line += 1
 			continue
 		}

@@ -36,3 +36,16 @@ type Container struct {
 		NetworkMode string `json:"NetworkMode"`
 	} `json:"HostConfig"`
 }
+
+type Image struct {
+	ID          string      `json:"Id"`
+	ParentId    string      `json:"ParentId"`
+	RepoTags    []string    `json:"RepoTags"`
+	RepoDigests []string    `json:"RepoDigests"`
+	Created     int         `json:"Created"`
+	Size        int64       `json:"Size"`
+	SharedSize  int64       `json:"SharedSize"`
+	VirtualSize int64       `json:"VirtualSize"`
+	Labels      interface{} `json:"Labels"`
+	Containers  int         `json:"Containers"`
+}

@@ -38,5 +38,12 @@ func docker_http_builtin(docker_socket string, wg *sync.WaitGroup) {
 		panic(err)
 	}
 	slog.Info("Found running processes for process", "id", containers[0].ID, "processes", running_processes)
+
+	images, err := dc.ListImages()
+
+	for _, v := range images {
+		slog.Info("Image", "image", v)
+	}
+
 	wg.Done()
 }

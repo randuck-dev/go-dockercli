@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 )
@@ -51,6 +52,9 @@ func (dc *DockerClient) GetContainers() ([]Container, error) {
 
 	resp, err := dc.Get("/containers/json")
 
+	if err != nil {
+		return []Container{}, err
+	}
 	var containers []Container
 	err = json.Unmarshal(resp, &containers)
 
@@ -97,4 +101,19 @@ func (dc *DockerClient) GetRunningProcesses(id string) ([]Proccess, error) {
 	}
 
 	return processes, nil
+}
+
+func (dc *DockerClient) ListImages() ([]Image, error) {
+	resp, err := dc.Get("/images/json")
+
+	if err != nil {
+		return []Image{}, err
+	}
+
+	slog.Info("ListImages:", "resp", resp)
+	var images []Image
+
+	err = json.Unmarshal(resp, &images)
+
+	return images, nil
 }

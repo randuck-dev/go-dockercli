@@ -3,12 +3,11 @@ package http
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/textproto"
-	"strconv"
-	"strings"
 	"sync"
 )
 
@@ -22,6 +21,36 @@ var StatusCodeOutsideOfRange = errors.New("Statuscode is outside of allowed rang
 
 var InvalidHeaderFormat = errors.New("Invalid Header Format detected. Expected Format: \"key: value\"")
 
+type Client interface {
+	Get(string) (Response, error)
+}
+
+type Response struct {
+	StatusLine StatusLine
+	Headers    map[string]string
+}
+
+type StatusLine struct {
+	HttpVersion  string
+	StatusCode   uint16
+	ReasonPhrase string
+}
+
+type HttpClient struct {
+	net.Conn
+}
+
+func (hc *HttpClient) Get(uri string) (Response, error) {
+	written, err := hc.Write([]byte(fmt.Sprintf("GET %s HTTP/1.1\nHost: localhost \r\n\r\n", uri)))
+	if err != nil {
+		slog.Error("Error while writing to connection", "err", err)
+		return Response{}, err
+	}
+
+	slog.Debug("Written bytes", "written", written)
+	return Response{}, nil
+}
+
 func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 
 	socket, err := dial(docker_socket)
@@ -31,74 +60,14 @@ func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 		return
 	}
 
-	defer socket.Close()
-	go listen(socket, wg)
-	written, err := socket.Write([]byte("GET /containers/json HTTP/1.1\nHost: localhost \r\n\r\n"))
+	client := HttpClient{socket}
 
-	if err != nil {
-		slog.Error("Error while writing to connection", "err", err)
-		return
-	}
-
-	slog.Debug("Written bytes", "written", written)
+	defer client.Close()
 
 	wg.Wait()
 }
 
-func parseStatusLine(payload string) (StatusLine, error) {
-
-	split_line := strings.Split(payload, " ")
-	if len(split_line) != 3 {
-		return StatusLine{}, IncompleteStatusLine
-	}
-
-	httpVersion := split_line[0]
-
-	if httpVersion != HTTP11 {
-		return StatusLine{}, UnsupportedHttpVersion
-	}
-
-	status_code, err := strconv.ParseUint(split_line[1], 10, 16)
-	if err != nil {
-		slog.Error("Error occured while parsing status code status line", "line", payload)
-		return StatusLine{}, err
-	}
-
-	if status_code < 100 || status_code > 599 {
-		return StatusLine{}, StatusCodeOutsideOfRange
-	}
-
-	sl := StatusLine{
-		split_line[0],
-		uint16(status_code),
-		split_line[2],
-	}
-
-	slog.Info("parsed status line", "status_line", sl)
-	return sl, nil
-}
-
-func parseHeader(rawHeader string) (string, string, error) {
-	headers_split := strings.SplitN(rawHeader, ":", 2)
-
-	if len(headers_split) < 2 {
-		return "", "", InvalidHeaderFormat
-	}
-
-	key := strings.TrimSpace(headers_split[0])
-	value := strings.TrimSpace(headers_split[1])
-
-	if len(key) == 0 {
-		return "", "", InvalidHeaderFormat
-	}
-
-	if len(value) == 0 {
-		return "", "", InvalidHeaderFormat
-	}
-	return key, value, nil
-}
-
-func listen(conn net.Conn, wg *sync.WaitGroup) {
+func listen(conn io.Reader, wg *sync.WaitGroup) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 
@@ -145,17 +114,6 @@ func listen(conn net.Conn, wg *sync.WaitGroup) {
 	}
 
 	wg.Done()
-}
-
-type Response struct {
-	StatusLine StatusLine
-	Headers    map[string]string
-}
-
-type StatusLine struct {
-	HttpVersion  string
-	StatusCode   uint16
-	ReasonPhrase string
 }
 
 func dial(addr string) (net.Conn, error) {

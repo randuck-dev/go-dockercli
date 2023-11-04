@@ -1,3 +1,11 @@
-# DockerCLI w/ custom HTTP Parser
+# Custom HTTP Parser
 
-A docker cli that attempts to be API compatible with the Docker API. Purely for learning purposes the HTTP parser is built from the bottom up and attempts to be HTTP/1.1 spec compliant. 
+A custom HTTP Parser that attempts to be compliant with HTTP/1.1 as per [RFC 9110](https://datatracker.ietf.org/doc/html/rfc9110.html)
+
+This is built purely for educational purposes as to get a deeper understanding for how the HTTP protocol works underneath the hood.
+
+## TODO
+- Body parsing
+- Streaming
+- Error handling
+- Etc?

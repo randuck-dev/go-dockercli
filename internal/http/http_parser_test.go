@@ -37,24 +37,24 @@ func TestParseStatusLine(t *testing.T) {
 	t.Run("Status line fails when the status line is incomplete", func(t *testing.T) {
 		rawStatusLine := "200 OK"
 		_, err := parseStatusLine(rawStatusLine)
-		if err != IncompleteStatusLine {
-			t.Errorf("got %s want %s", err, IncompleteStatusLine)
+		if err != ErrIncompleteStatusLine {
+			t.Errorf("got %s want %s", err, ErrIncompleteStatusLine)
 		}
 	})
 
 	t.Run("Status line fails when the HTTP version is not recognized", func(t *testing.T) {
 		rawStatusLine := "HTTP/-1 200 OK"
 		_, err := parseStatusLine(rawStatusLine)
-		if err != UnsupportedHttpVersion {
-			t.Errorf("got %s want %s", err, UnsupportedHttpVersion)
+		if err != ErrUnsupportedHTTPVersion {
+			t.Errorf("got %s want %s", err, ErrUnsupportedHTTPVersion)
 		}
 	})
 
 	t.Run("Statuscode must fail if it is outside of allowed range", func(t *testing.T) {
 		rawStatusLine := "HTTP/1.1 09 OK"
 		_, err := parseStatusLine(rawStatusLine)
-		if err != StatusCodeOutsideOfRange {
-			t.Errorf("got %s want %s", err, StatusCodeOutsideOfRange)
+		if err != ErrStatusCodeOutsideOfRange {
+			t.Errorf("got %s want %s", err, ErrStatusCodeOutsideOfRange)
 		}
 	})
 }
@@ -81,8 +81,8 @@ func TestHeaderParsing(t *testing.T) {
 		rawHeader := ": application/json"
 		_, _, err := parseHeader(rawHeader)
 
-		if err != InvalidHeaderFormat {
-			t.Errorf("got %s want %s", err, InvalidHeaderFormat)
+		if err != ErrInvalidHeaderFormat {
+			t.Errorf("got %s want %s", err, ErrInvalidHeaderFormat)
 		}
 	})
 
@@ -90,8 +90,8 @@ func TestHeaderParsing(t *testing.T) {
 		rawHeader := "Content-Type: "
 		_, _, err := parseHeader(rawHeader)
 
-		if err != InvalidHeaderFormat {
-			t.Errorf("got %s want %s", err, InvalidHeaderFormat)
+		if err != ErrInvalidHeaderFormat {
+			t.Errorf("got %s want %s", err, ErrInvalidHeaderFormat)
 		}
 	})
 
@@ -99,8 +99,8 @@ func TestHeaderParsing(t *testing.T) {
 		rawHeader := "Content-Type application/json"
 		_, _, err := parseHeader(rawHeader)
 
-		if err != InvalidHeaderFormat {
-			t.Errorf("got %s want %s", err, InvalidHeaderFormat)
+		if err != ErrInvalidHeaderFormat {
+			t.Errorf("got %s want %s", err, ErrInvalidHeaderFormat)
 		}
 	})
 }

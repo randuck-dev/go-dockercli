@@ -10,13 +10,13 @@ func parseStatusLine(payload string) (StatusLine, error) {
 
 	split_line := strings.Split(payload, " ")
 	if len(split_line) != 3 {
-		return StatusLine{}, IncompleteStatusLine
+		return StatusLine{}, ErrIncompleteStatusLine
 	}
 
 	httpVersion := split_line[0]
 
 	if httpVersion != HTTP11 {
-		return StatusLine{}, UnsupportedHttpVersion
+		return StatusLine{}, ErrUnsupportedHTTPVersion
 	}
 
 	status_code, err := strconv.ParseUint(split_line[1], 10, 16)
@@ -26,7 +26,7 @@ func parseStatusLine(payload string) (StatusLine, error) {
 	}
 
 	if status_code < 100 || status_code > 599 {
-		return StatusLine{}, StatusCodeOutsideOfRange
+		return StatusLine{}, ErrStatusCodeOutsideOfRange
 	}
 
 	sl := StatusLine{
@@ -43,18 +43,18 @@ func parseHeader(rawHeader string) (string, string, error) {
 	headers_split := strings.SplitN(rawHeader, ":", 2)
 
 	if len(headers_split) < 2 {
-		return "", "", InvalidHeaderFormat
+		return "", "", ErrInvalidHeaderFormat
 	}
 
 	key := strings.TrimSpace(headers_split[0])
 	value := strings.TrimSpace(headers_split[1])
 
 	if len(key) == 0 {
-		return "", "", InvalidHeaderFormat
+		return "", "", ErrInvalidHeaderFormat
 	}
 
 	if len(value) == 0 {
-		return "", "", InvalidHeaderFormat
+		return "", "", ErrInvalidHeaderFormat
 	}
 	return key, value, nil
 }

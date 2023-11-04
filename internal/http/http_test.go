@@ -3,6 +3,7 @@ package http
 import (
 	"io"
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -30,5 +31,35 @@ func TestGet(t *testing.T) {
 
 	if string(res) != expected {
 		t.Errorf("got %s want %s", string(res), expected)
+	}
+}
+
+func TestParseResponse(t *testing.T) {
+	responseRaw := "HTTP/1.1 200 OK\nHost: localhost \r\n\r\n"
+
+	resp, err := parseResponse(strings.NewReader(responseRaw))
+	if err != nil {
+		t.Errorf("Unexecpted error %s", err)
+	}
+
+	if resp.StatusLine.HttpVersion != HTTP11 {
+		t.Errorf("got %s want %s", resp.StatusLine.HttpVersion, HTTP11)
+	}
+
+	if resp.StatusLine.StatusCode != 200 {
+		t.Errorf("got %d want %d", resp.StatusLine.StatusCode, 200)
+	}
+
+	if resp.StatusLine.ReasonPhrase != "OK" {
+		t.Errorf("got %s want %s", resp.StatusLine.ReasonPhrase, "OK")
+	}
+
+	val, ok := resp.Headers["Host"]
+	if !ok {
+		t.Errorf("unable to find Host header in headers")
+	}
+
+	if val != "localhost" {
+		t.Errorf("got %s want %s", val, "localhost")
 	}
 }

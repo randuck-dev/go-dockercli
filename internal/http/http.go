@@ -15,11 +15,11 @@ const (
 	HTTP11 = "HTTP/1.1"
 )
 
-var UnsupportedHttpVersion = errors.New("Unsupported HTTP Version")
-var IncompleteStatusLine = errors.New("Incomplete StatusLine. Needs 3 parts")
-var StatusCodeOutsideOfRange = errors.New("Statuscode is outside of allowed range 100-599")
+var ErrUnsupportedHTTPVersion = errors.New("unsupported HTTP version")
+var ErrIncompleteStatusLine = errors.New("incomplete StatusLine. Needs 3 parts")
+var ErrStatusCodeOutsideOfRange = errors.New("statuscode is outside of allowed range 100-599")
 
-var InvalidHeaderFormat = errors.New("Invalid Header Format detected. Expected Format: \"key: value\"")
+var ErrInvalidHeaderFormat = errors.New("invalid header format detected. Expected format: \"key: value\"")
 
 type Client interface {
 	Get(string) (Response, error)
@@ -67,38 +67,34 @@ func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 	wg.Wait()
 }
 
-func listen(conn io.Reader, wg *sync.WaitGroup) {
+func parseResponse(conn io.Reader) (Response, error) {
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 
-	current_line := 0
-	parsing_headers := true
+	var status_line StatusLine
 	headers := make(map[string]string)
+	line, err := tp.ReadLine()
+	if err != nil {
+		slog.Error("Error occurred while reading line", "err", err)
+		return Response{}, err
+	}
+	status_line, err = parseStatusLine(line)
+	if err != nil {
+		slog.Error("Error when parsing status line", "err", err, "line", line)
+		return Response{}, err
+	}
+
+	parsing_headers := true
 	for {
 		line, err := tp.ReadLine()
-		if err == io.EOF {
-			slog.Info("End of file reached")
-			break
-		}
 		if err != nil {
-			slog.Error("Error occurred while reading line", "err", err)
-			return
-		}
-		if current_line == 0 {
-			sl, err := parseStatusLine(line)
-			if err != nil {
-				slog.Error("Error when parsing status line", "err", err, "line", line)
-				return
-			}
-			slog.Info("Parsed status line", "statusline", sl)
-			current_line += 1
-			continue
+			return Response{}, err
 		}
 
-		// Now we are at a point where there might be headers
 		if line == "" && parsing_headers {
 			parsing_headers = false
 			slog.Info("Finished parsing headers", "headers", headers)
+			break
 		} else if line != "" && parsing_headers {
 			slog.Debug("Header", "header", line)
 
@@ -108,12 +104,12 @@ func listen(conn io.Reader, wg *sync.WaitGroup) {
 			}
 			headers[key] = value
 		}
-
-		slog.Info("Read a line from connection", "line", line)
-		current_line += 1
 	}
 
-	wg.Done()
+	return Response{
+		StatusLine: status_line,
+		Headers:    headers,
+	}, nil
 }
 
 func dial(addr string) (net.Conn, error) {

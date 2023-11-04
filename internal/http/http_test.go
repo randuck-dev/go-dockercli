@@ -35,31 +35,50 @@ func TestGet(t *testing.T) {
 }
 
 func TestParseResponse(t *testing.T) {
-	responseRaw := "HTTP/1.1 200 OK\nHost: localhost \r\n\r\n"
+	t.Run("successfull response", func(t *testing.T) {
+		responseRaw := "HTTP/1.1 200 OK\nHost: localhost \r\n\r\n"
 
-	resp, err := parseResponse(strings.NewReader(responseRaw))
-	if err != nil {
-		t.Errorf("Unexecpted error %s", err)
-	}
+		resp, err := parseResponse(strings.NewReader(responseRaw))
+		if err != nil {
+			t.Errorf("Unexecpted error %s", err)
+		}
 
-	if resp.StatusLine.HttpVersion != HTTP11 {
-		t.Errorf("got %s want %s", resp.StatusLine.HttpVersion, HTTP11)
-	}
+		if resp.StatusLine.HttpVersion != HTTP11 {
+			t.Errorf("got %s want %s", resp.StatusLine.HttpVersion, HTTP11)
+		}
 
-	if resp.StatusLine.StatusCode != 200 {
-		t.Errorf("got %d want %d", resp.StatusLine.StatusCode, 200)
-	}
+		if resp.StatusLine.StatusCode != 200 {
+			t.Errorf("got %d want %d", resp.StatusLine.StatusCode, 200)
+		}
 
-	if resp.StatusLine.ReasonPhrase != "OK" {
-		t.Errorf("got %s want %s", resp.StatusLine.ReasonPhrase, "OK")
-	}
+		if resp.StatusLine.ReasonPhrase != "OK" {
+			t.Errorf("got %s want %s", resp.StatusLine.ReasonPhrase, "OK")
+		}
 
-	val, ok := resp.Headers["Host"]
-	if !ok {
-		t.Errorf("unable to find Host header in headers")
-	}
+		val, ok := resp.Headers["Host"]
+		if !ok {
+			t.Errorf("unable to find Host header in headers")
+		}
 
-	if val != "localhost" {
-		t.Errorf("got %s want %s", val, "localhost")
-	}
+		if val != "localhost" {
+			t.Errorf("got %s want %s", val, "localhost")
+		}
+	})
+
+	t.Run("Failed response: UnsupportedHttpVersion", func(t *testing.T) {
+		responseRaw := "HTTP/2.0 200 OK\nHost: localhost \r\n\r\n"
+
+		_, err := parseResponse(strings.NewReader(responseRaw))
+		if err != ErrUnsupportedHTTPVersion {
+			t.Errorf("Unexecpted error %s", err)
+		}
+	})
+
+	t.Run("Failed Response: ConnectionIsNil", func(t *testing.T) {
+		_, err := parseResponse(nil)
+
+		if err != ErrConnectionIsNil {
+			t.Errorf("got %s want %s", err, ErrConnectionIsNil)
+		}
+	})
 }

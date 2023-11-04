@@ -104,24 +104,3 @@ func TestHeaderParsing(t *testing.T) {
 		}
 	})
 }
-
-func TestListen(t *testing.T) {
-	// wg := sync.WaitGroup{}
-
-	// fr := FakeReader{}
-
-	// listen(fr, &wg)
-}
-
-type FakeReader struct{}
-
-func (fr FakeReader) Read(payload []byte) (int, error) {
-
-	msg := "HTTP/1.1 200 OK"
-
-	for i, v := range msg {
-		payload[i] = byte(v)
-	}
-
-	return len(msg), nil
-}

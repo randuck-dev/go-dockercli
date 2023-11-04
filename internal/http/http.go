@@ -18,6 +18,7 @@ const (
 var ErrUnsupportedHTTPVersion = errors.New("unsupported HTTP version")
 var ErrIncompleteStatusLine = errors.New("incomplete StatusLine. Needs 3 parts")
 var ErrStatusCodeOutsideOfRange = errors.New("statuscode is outside of allowed range 100-599")
+var ErrConnectionIsNil = errors.New("expected connection to be set, was nil")
 
 var ErrInvalidHeaderFormat = errors.New("invalid header format detected. Expected format: \"key: value\"")
 
@@ -68,6 +69,10 @@ func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
 }
 
 func parseResponse(conn io.Reader) (Response, error) {
+	if conn == nil {
+		return Response{}, ErrConnectionIsNil
+	}
+
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
 

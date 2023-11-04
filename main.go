@@ -1,7 +1,7 @@
 package main
 
 import (
-	docker "go-dockercli/internal"
+	docker "http-parser/internal"
 	"log/slog"
 	"sync"
 )

@@ -1,3 +1,3 @@
-module go-dockercli
+module http-parser
 
 go 1.21.3

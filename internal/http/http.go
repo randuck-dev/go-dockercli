@@ -3,11 +3,11 @@ package http
 import (
 	"bufio"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/textproto"
+	"slices"
 	"sync"
 )
 
@@ -21,6 +21,8 @@ var ErrStatusCodeOutsideOfRange = errors.New("statuscode is outside of allowed r
 var ErrConnectionIsNil = errors.New("expected connection to be set, was nil")
 
 var ErrInvalidHeaderFormat = errors.New("invalid header format detected. Expected format: \"key: value\"")
+
+var ErrMethodNotImplemented = errors.New("the implementation does not support the method")
 
 type Client interface {
 	Get(string) (Response, error)
@@ -41,8 +43,14 @@ type HttpClient struct {
 	net.Conn
 }
 
-func (hc *HttpClient) Get(uri string) (Response, error) {
-	written, err := hc.Write([]byte(fmt.Sprintf("GET %s HTTP/1.1\nHost: localhost \r\n\r\n", uri)))
+var supported_methods = []string{"GET", "HEAD"}
+
+func (hc *HttpClient) Do(request Request) (Response, error) {
+	if !slices.Contains(supported_methods, request.Method) {
+		return Response{}, ErrMethodNotImplemented
+	}
+
+	written, err := hc.Write([]byte(request.ToRaw()))
 	if err != nil {
 		slog.Error("Error while writing to connection", "err", err)
 		return Response{}, err
@@ -50,6 +58,27 @@ func (hc *HttpClient) Get(uri string) (Response, error) {
 
 	slog.Debug("Written bytes", "written", written)
 	return Response{}, nil
+}
+
+func (hc *HttpClient) Get(uri string) (Response, error) {
+	request := Request{
+		Version: HTTP11,
+		Method:  "GET",
+		Uri:     uri,
+	}
+
+	return hc.Do(request)
+}
+
+func (hc *HttpClient) Head(uri string) (Response, error) {
+	// TODO: Is not allowed to have a body
+	request := Request{
+		Version: HTTP11,
+		Method:  "HEAD",
+		Uri:     uri,
+	}
+
+	return hc.Do(request)
 }
 
 func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {

@@ -68,8 +68,8 @@ func TestDo(t *testing.T) {
 
 	_, err := c.Do(request)
 
-	if err != ErrMethodNotImplemented {
-		t.Errorf("got %s want %s", err, ErrMethodNotImplemented)
+	if err != ErrImplementationDoesNotSupportMethod {
+		t.Errorf("got %s want %s", err, ErrImplementationDoesNotSupportMethod)
 	}
 }
 

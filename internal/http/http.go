@@ -28,17 +28,6 @@ type Client interface {
 	Get(string) (Response, error)
 }
 
-type Response struct {
-	StatusLine StatusLine
-	Headers    map[string]string
-}
-
-type StatusLine struct {
-	HttpVersion  string
-	StatusCode   uint16
-	ReasonPhrase string
-}
-
 type HttpClient struct {
 	net.Conn
 }

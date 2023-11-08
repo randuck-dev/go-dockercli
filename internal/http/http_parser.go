@@ -9,7 +9,7 @@ import (
 func parseStatusLine(payload string) (StatusLine, error) {
 
 	split_line := strings.Split(payload, " ")
-	if len(split_line) != 3 {
+	if len(split_line) < 3 {
 		return StatusLine{}, ErrIncompleteStatusLine
 	}
 
@@ -29,10 +29,19 @@ func parseStatusLine(payload string) (StatusLine, error) {
 		return StatusLine{}, ErrStatusCodeOutsideOfRange
 	}
 
+	reason_phrase := ""
+
+	for i := 2; i < len(split_line); i++ {
+		reason_phrase += split_line[i]
+		if i != len(split_line)-1 {
+			reason_phrase += " "
+		}
+	}
+
 	sl := StatusLine{
 		split_line[0],
 		uint16(status_code),
-		split_line[2],
+		reason_phrase,
 	}
 
 	slog.Info("parsed status line", "status_line", sl)

@@ -1,10 +1,15 @@
 package http
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 type Response struct {
 	StatusLine StatusLine
 	Headers    map[string]string
+
+	Body []byte
 }
 
 type StatusLine struct {
@@ -15,6 +20,7 @@ type StatusLine struct {
 
 var ErrNoContentTypefound = errors.New("no content type")
 var ErrHeaderNotFound = errors.New("header not found")
+var ErrInvalidContentLengthFormat = errors.New("invalid content lenght format")
 
 func (r Response) ContentType() (string, error) {
 
@@ -35,4 +41,24 @@ func (r Response) TransferEncoding() (string, error) {
 	}
 
 	return res, nil
+}
+
+func (r Response) Ok() bool {
+	return r.StatusLine.StatusCode == HttpStatusCodeOK
+}
+
+func (r Response) ContentLength() (int64, error) {
+	res, ok := r.Headers["Content-Length"]
+
+	if !ok {
+		return -1, ErrHeaderNotFound
+	}
+
+	val, err := strconv.ParseInt(res, 10, 64)
+
+	if err != nil {
+		return -1, ErrInvalidContentLengthFormat
+	}
+
+	return val, nil
 }

@@ -26,6 +26,19 @@ func TestParseStatusLine(t *testing.T) {
 		}
 	})
 
+	t.Run("Status line should parse when Bad Request is set, since that contains two words", func(t *testing.T) {
+		rawStatusLine := "HTTP/1.1 400 Bad Request"
+
+		sl, err := parseStatusLine(rawStatusLine)
+		if err != nil {
+			t.Errorf("Unexpected error when parsing status line %s", err)
+		}
+
+		if sl.ReasonPhrase != "Bad Request" {
+			t.Errorf("got %s want %s", sl.ReasonPhrase, "Bad Request")
+		}
+	})
+
 	t.Run("Status line fails when statuscode is not an integer", func(t *testing.T) {
 		rawStatusLine := "HTTP/1.1 FAIL OK"
 		_, err := parseStatusLine(rawStatusLine)
@@ -103,4 +116,5 @@ func TestHeaderParsing(t *testing.T) {
 			t.Errorf("got %s want %s", err, ErrInvalidHeaderFormat)
 		}
 	})
+
 }

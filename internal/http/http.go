@@ -134,6 +134,28 @@ func parseResponse(conn io.Reader) (Response, error) {
 		Headers:    headers,
 	}
 
+	content_length, err := resp.ContentLength()
+
+	if err == ErrHeaderNotFound {
+		return resp, nil
+	}
+
+	if err != nil {
+		return Response{}, err
+	}
+
+	limit_reader := io.LimitReader(reader, content_length)
+
+	buf := make([]byte, content_length)
+
+	_, err = limit_reader.Read(buf)
+
+	if err != nil {
+		return Response{}, nil
+	}
+
+	resp.Body = buf
+	return resp, nil
 	line, err = tp.ReadLine()
 
 	if err == io.EOF {

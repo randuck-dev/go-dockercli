@@ -2,35 +2,62 @@ package http
 
 import (
 	"io"
+	"log/slog"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
+func XyzHandler(w http.ResponseWriter, r *http.Request) {
+	resp := "Hello World"
+	slog.Info("Received request with protocol type", "proto", r.Proto)
+	w.Header().Add("Content-Type", "text/plain")
+	w.WriteHeader(HttpStatusCodeOK)
+
+	w.Write(([]byte(resp)))
+}
+
+func MiddleWare(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("got a request", "request", r)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func TestGet(t *testing.T) {
-	return
-	server, client := net.Pipe()
-	http_client := HttpClient{client}
 
-	go func() {
-		defer client.Close()
-		_, err := http_client.Get("xyz")
+	mux := http.NewServeMux()
+	mux.Handle("/", MiddleWare(http.HandlerFunc(XyzHandler)))
 
-		if err != nil {
-			t.Errorf("Unexpected error %s", err)
-		}
-	}()
+	server := httptest.NewServer(mux)
+	defer server.Close()
 
-	res, err := io.ReadAll(server)
+	url := strings.Split(server.URL, "://")[1]
+	conn, err := net.Dial("tcp", url)
+	if err != nil {
+		t.Errorf("failed to dial socket %s", err)
+	}
+	http_client := HttpClient{conn}
+	res, err := http_client.Get("/")
 
 	if err != nil {
 		t.Errorf("Unexpected error %s", err)
 	}
 
-	expected := "GET xyz HTTP/1.1\nHost: localhost\r\n\r\n"
+	if ct, err := res.ContentType(); err == nil && ct != "text/plain" {
+		t.Errorf("got %s want %s", ct, "text/plain")
+	}
 
-	if string(res) != expected {
-		t.Errorf("got %s want %s", string(res), expected)
+	if !res.Ok() {
+		t.Errorf("got %d want %d", res.StatusLine.StatusCode, HttpStatusCodeOK)
+	}
+
+	body := string(res.Body)
+
+	if body != "Hello World" {
+		t.Errorf("got %s want %s", body, "Hello World")
 	}
 }
 

@@ -8,7 +8,7 @@ import (
 	"net"
 	"net/textproto"
 	"slices"
-	"sync"
+	"strconv"
 )
 
 const (
@@ -46,7 +46,8 @@ func (hc *HttpClient) Do(request Request) (Response, error) {
 	}
 
 	slog.Debug("Written bytes", "written", written)
-	return Response{}, nil
+
+	return parseResponse(hc)
 }
 
 func (hc *HttpClient) Get(uri string) (Response, error) {
@@ -70,20 +71,19 @@ func (hc *HttpClient) Head(uri string) (Response, error) {
 	return hc.Do(request)
 }
 
-func Raw_http_parsing_docker_socket(docker_socket string, wg *sync.WaitGroup) {
+func Raw_http_parsing_docker_socket(docker_socket string) (Response, error) {
 
 	socket, err := dial(docker_socket)
 
 	if err != nil {
 		slog.Error("Unable to connect to socket", "err", err)
-		return
+		return Response{}, nil
 	}
 
 	client := HttpClient{socket}
 
 	defer client.Close()
-
-	wg.Wait()
+	return client.Get("http://localhost/containers/json")
 }
 
 func parseResponse(conn io.Reader) (Response, error) {
@@ -116,7 +116,7 @@ func parseResponse(conn io.Reader) (Response, error) {
 
 		if line == "" && parsing_headers {
 			parsing_headers = false
-			slog.Info("Finished parsing headers", "headers", headers)
+			slog.Debug("Finished parsing headers", "headers", headers)
 			break
 		} else if line != "" && parsing_headers {
 			slog.Debug("Header", "header", line)
@@ -126,6 +126,36 @@ func parseResponse(conn io.Reader) (Response, error) {
 				slog.Error("Error when parsing header", "err", err, "line", line)
 			}
 			headers[key] = value
+		}
+	}
+
+	resp := Response{
+		StatusLine: status_line,
+		Headers:    headers,
+	}
+
+	line, err = tp.ReadLine()
+
+	if err == io.EOF {
+		return resp, nil
+	}
+
+	if err != nil && err != io.EOF {
+		return Response{}, nil
+	}
+
+	if _, err := resp.TransferEncoding(); err == nil {
+		val, err := strconv.ParseInt(line, 16, 32)
+		if err != nil {
+			return Response{}, err
+		}
+
+		limitReader := io.LimitReader(reader, val)
+		buf := make([]byte, val)
+		_, err = limitReader.Read(buf)
+
+		if err != nil {
+			return Response{}, err
 		}
 	}
 

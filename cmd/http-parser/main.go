@@ -2,6 +2,7 @@ package main
 
 import (
 	docker "http-parser/internal"
+	"http-parser/internal/http"
 	"log/slog"
 	"sync"
 )
@@ -9,14 +10,15 @@ import (
 func main() {
 	docker_socket := "/var/run/docker.sock"
 
-	wait := sync.WaitGroup{}
-	wait.Add(1)
+	response, err := http.Raw_http_parsing_docker_socket(docker_socket)
 
-	// go docker.Raw_http_parsing_docker_socket(docker_socket, &wait)
+	if err != nil {
+		slog.Error("Unexpected error occured", "err", err)
+	}
 
-	go docker_http_builtin(docker_socket, &wait)
+	slog.Info("Got response", "response", response)
+	// docker_http_builtin(docker_socket, &wait)
 
-	wait.Wait()
 }
 
 func docker_http_builtin(docker_socket string, wg *sync.WaitGroup) {

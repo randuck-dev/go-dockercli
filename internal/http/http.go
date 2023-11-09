@@ -32,6 +32,15 @@ type HttpClient struct {
 	net.Conn
 }
 
+func NewHttpClient(address string) (HttpClient, error) {
+	dial, err := net.Dial("tcp", address)
+	if err != nil {
+		return HttpClient{}, err
+	}
+
+	return HttpClient{dial}, nil
+}
+
 var supported_methods = []string{"GET", "HEAD"}
 
 func (hc *HttpClient) Do(request Request) (Response, error) {

@@ -1,9 +1,7 @@
 package http
 
 import (
-	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,12 +9,18 @@ import (
 )
 
 func XyzHandler(w http.ResponseWriter, r *http.Request) {
-	resp := "Hello World"
-	slog.Info("Received request with protocol type", "proto", r.Proto)
-	w.Header().Add("Content-Type", "text/plain")
-	w.WriteHeader(HttpStatusCodeOK)
+	if r.Method == "GET" {
+		resp := "Hello World"
+		slog.Info("Received request with protocol type", "proto", r.Proto)
+		w.Header().Add("Content-Type", "text/plain")
+		w.WriteHeader(HttpStatusCodeOK)
 
-	w.Write(([]byte(resp)))
+		w.Write(([]byte(resp)))
+	}
+
+	if r.Method == "HEAD" {
+		w.WriteHeader(200)
+	}
 }
 
 func MiddleWare(next http.Handler) http.Handler {
@@ -26,20 +30,25 @@ func MiddleWare(next http.Handler) http.Handler {
 	})
 }
 
-func TestGet(t *testing.T) {
-
+func BuildServer(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
 	mux := http.NewServeMux()
 	mux.Handle("/", MiddleWare(http.HandlerFunc(XyzHandler)))
 
 	server := httptest.NewServer(mux)
+	url := strings.Split(server.URL, "://")[1]
+	return server, url
+}
+
+func TestGet(t *testing.T) {
+	server, url := BuildServer(t)
 	defer server.Close()
 
-	url := strings.Split(server.URL, "://")[1]
-	conn, err := net.Dial("tcp", url)
+	http_client, err := NewHttpClient(url)
+
 	if err != nil {
-		t.Errorf("failed to dial socket %s", err)
+		t.Errorf("failed to create new http client %s", err)
 	}
-	http_client := HttpClient{conn}
 	res, err := http_client.Get("/")
 
 	if err != nil {
@@ -62,29 +71,21 @@ func TestGet(t *testing.T) {
 }
 
 func TestHead(t *testing.T) {
-	return
-	server, client := net.Pipe()
-	http_client := HttpClient{client}
+	server, url := BuildServer(t)
+	http_client, err := NewHttpClient(url)
 
-	go func() {
-		defer client.Close()
-		_, err := http_client.Head("xyz")
-
-		if err != nil {
-			t.Errorf("Unexpected error %s", err)
-		}
-	}()
-
-	res, err := io.ReadAll(server)
+	if err != nil {
+		t.Errorf("unexpected error when creating http client %s", err)
+	}
+	defer server.Close()
+	resp, err := http_client.Head("/")
 
 	if err != nil {
 		t.Errorf("Unexpected error %s", err)
 	}
 
-	expected := "HEAD xyz HTTP/1.1\nHost: localhost\r\n\r\n"
-
-	if string(res) != expected {
-		t.Errorf("got %s want %s", string(res), expected)
+	if !resp.Ok() {
+		t.Errorf("got %d want %d", resp.StatusLine.StatusCode, 200)
 	}
 }
 

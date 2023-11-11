@@ -1,8 +1,9 @@
 package main
 
 import (
-	"http-parser/internal/http"
 	"log/slog"
+
+	"github.com/randuck-dev/http-parser/internal/http"
 )
 
 func main() {

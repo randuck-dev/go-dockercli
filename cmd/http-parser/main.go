@@ -1,10 +1,11 @@
 package main
 
 import (
-	docker "http-parser/internal"
-	"http-parser/internal/http"
 	"log/slog"
 	"sync"
+
+	docker "github.com/randuck-dev/http-parser/internal"
+	"github.com/randuck-dev/http-parser/internal/http"
 )
 
 func main() {

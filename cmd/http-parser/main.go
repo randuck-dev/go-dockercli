@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"sync"
 
-	docker "github.com/randuck-dev/http-parser/internal"
-	"github.com/randuck-dev/http-parser/internal/http"
+	"github.com/randuck-dev/http-parser/docker"
+	"github.com/randuck-dev/http-parser/http"
 )
 
 func main() {

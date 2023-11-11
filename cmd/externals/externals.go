@@ -3,7 +3,7 @@ package main
 import (
 	"log/slog"
 
-	"github.com/randuck-dev/http-parser/internal/http"
+	"github.com/randuck-dev/http-parser/http"
 )
 
 func main() {

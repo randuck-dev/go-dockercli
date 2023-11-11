@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"strings"
 )
 
 type Request struct {
@@ -15,6 +16,9 @@ type Request struct {
 
 func (r Request) ToRaw() string {
 	host := fmt.Sprintf("Host: %s", r.Host)
+	if strings.HasPrefix(r.Host, "/") {
+		host = "Host: localhost"
+	}
 	return fmt.Sprintf("%s %s %s\n%s%s", r.Method, r.Uri, r.Version, host, EndOfMessage)
 }
 

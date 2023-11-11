@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	c, err := http.NewHttpClient("example.com:80")
+	c, err := http.NewHttpClient(http.TcpDialContext("example.com:80"))
 	if err != nil {
 		slog.Error("Error while creating client", "err", err)
 		return

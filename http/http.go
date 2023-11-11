@@ -34,13 +34,13 @@ type HttpClient struct {
 	address string
 }
 
-func NewHttpClient(address string) (HttpClient, error) {
-	dial, err := net.Dial("tcp", address)
+func NewHttpClient(dc DialContext) (HttpClient, error) {
+	dial, err := net.Dial(dc.network, dc.Address)
 	if err != nil {
 		return HttpClient{}, err
 	}
 
-	return HttpClient{dial, address}, nil
+	return HttpClient{dial, dc.Address}, nil
 }
 
 var supported_methods = []string{"GET", "HEAD"}
@@ -50,7 +50,7 @@ func (hc *HttpClient) Do(request Request) (Response, error) {
 		return Response{}, ErrImplementationDoesNotSupportMethod
 	}
 
-	slog.Debug("Do: Performing request to URI", "uri", request.Uri, "address", hc.RemoteAddr())
+	slog.Info("Do: Performing request to URI", "uri", request.Uri, "address", hc.RemoteAddr())
 	written, err := hc.Write([]byte(request.ToRaw()))
 	if err != nil {
 		slog.Error("Error while writing to connection", "err", err)
@@ -102,7 +102,7 @@ func (hc *HttpClient) Head(uri string) (Response, error) {
 }
 
 func Raw_http_parsing_docker_socket(docker_socket string) (Response, error) {
-	client, err := NewHttpClient(docker_socket)
+	client, err := NewHttpClient(UnixDialContext(docker_socket))
 	if err != nil {
 		return Response{}, err
 	}

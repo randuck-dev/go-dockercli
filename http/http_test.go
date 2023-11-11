@@ -77,7 +77,7 @@ func TestGet(t *testing.T) {
 	server, url := BuildServer(t)
 	defer server.Close()
 
-	http_client, err := NewHttpClient(url)
+	http_client, err := NewHttpClient(TcpDialContext(url))
 
 	if err != nil {
 		t.Errorf("failed to create new http client %s", err)
@@ -105,7 +105,7 @@ func TestGet(t *testing.T) {
 
 func TestHead(t *testing.T) {
 	server, url := BuildServer(t)
-	http_client, err := NewHttpClient(url)
+	http_client, err := NewHttpClient(TcpDialContext(url))
 
 	if err != nil {
 		t.Errorf("unexpected error when creating http client %s", err)
@@ -139,7 +139,7 @@ func TestDo(t *testing.T) {
 func TestRedirect(t *testing.T) {
 	t.Run("moved permanently", func(t *testing.T) {
 		server, url := BuildServer(t)
-		http_client, err := NewHttpClient(url)
+		http_client, err := NewHttpClient(TcpDialContext(url))
 
 		if err != nil {
 			t.Errorf("unexpected error when creating http client %s", err)
@@ -164,7 +164,7 @@ func TestRedirect(t *testing.T) {
 
 	t.Run("moved temporarily", func(t *testing.T) {
 		server, url := BuildServer(t)
-		http_client, err := NewHttpClient(url)
+		http_client, err := NewHttpClient(TcpDialContext(url))
 
 		if err != nil {
 			t.Errorf("unexpected error when creating http client %s", err)

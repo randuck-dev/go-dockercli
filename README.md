@@ -16,7 +16,7 @@ This is built purely for educational purposes as to get a deeper understanding f
 
 
 ```go
-c, err := http.NewHttpClient("example.com:80")
+c, err := http.NewHttpClient(http.TcpDialContext("example.com:80"))
 if err != nil {
   slog.Error("Error while creating http client", "err", err)
   return

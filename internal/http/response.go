@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"slices"
 	"strconv"
 )
 
@@ -21,6 +22,11 @@ type StatusLine struct {
 var ErrNoContentTypefound = errors.New("no content type")
 var ErrHeaderNotFound = errors.New("header not found")
 var ErrInvalidContentLengthFormat = errors.New("invalid content lenght format")
+
+var redirectCodes = []int{
+	HttpStatusCodeTemporaryRedirect,
+	HttpStatusCodeMovedPermanently,
+}
 
 func (r Response) ContentType() (string, error) {
 
@@ -61,4 +67,18 @@ func (r Response) ContentLength() (int64, error) {
 	}
 
 	return val, nil
+}
+
+func (r Response) location() (string, error) {
+	res, ok := r.Headers["Location"]
+
+	if !ok {
+		return "", ErrHeaderNotFound
+	}
+
+	return res, nil
+}
+
+func (r Response) redirected() bool {
+	return slices.Contains(redirectCodes, int(r.StatusLine.StatusCode))
 }

@@ -19,6 +19,7 @@ var ErrUnsupportedHTTPVersion = errors.New("unsupported HTTP version")
 var ErrIncompleteStatusLine = errors.New("incomplete StatusLine. Needs 3 parts")
 var ErrStatusCodeOutsideOfRange = errors.New("statuscode is outside of allowed range 100-599")
 var ErrConnectionIsNil = errors.New("expected connection to be set, was nil")
+var ErrLocationNotFoundOnRedirect = errors.New("expected Location header to be sent on redirect")
 
 var ErrInvalidHeaderFormat = errors.New("invalid header format detected. Expected format: \"key: value\"")
 
@@ -30,6 +31,7 @@ type Client interface {
 
 type HttpClient struct {
 	net.Conn
+	address string
 }
 
 func NewHttpClient(address string) (HttpClient, error) {
@@ -38,7 +40,7 @@ func NewHttpClient(address string) (HttpClient, error) {
 		return HttpClient{}, err
 	}
 
-	return HttpClient{dial}, nil
+	return HttpClient{dial, address}, nil
 }
 
 var supported_methods = []string{"GET", "HEAD"}
@@ -48,6 +50,7 @@ func (hc *HttpClient) Do(request Request) (Response, error) {
 		return Response{}, ErrImplementationDoesNotSupportMethod
 	}
 
+	slog.Debug("Do: Performing request to URI", "uri", request.Uri, "address", hc.RemoteAddr())
 	written, err := hc.Write([]byte(request.ToRaw()))
 	if err != nil {
 		slog.Error("Error while writing to connection", "err", err)
@@ -56,7 +59,23 @@ func (hc *HttpClient) Do(request Request) (Response, error) {
 
 	slog.Debug("Written bytes", "written", written)
 
-	return parseResponse(hc)
+	resp, err := parseResponse(hc)
+	if err != nil {
+		return Response{}, err
+	}
+
+	if resp.redirected() {
+		loc, err := resp.location()
+		if err != nil {
+			return Response{}, ErrLocationNotFoundOnRedirect
+		}
+
+		req := request
+		req.setLocation(loc)
+		return hc.Do(req)
+	}
+
+	return resp, nil
 }
 
 func (hc *HttpClient) Get(uri string) (Response, error) {
@@ -64,6 +83,7 @@ func (hc *HttpClient) Get(uri string) (Response, error) {
 		Version: HTTP11,
 		Method:  "GET",
 		Uri:     uri,
+		Host:    hc.address,
 	}
 
 	return hc.Do(request)
@@ -75,21 +95,17 @@ func (hc *HttpClient) Head(uri string) (Response, error) {
 		Version: HTTP11,
 		Method:  "HEAD",
 		Uri:     uri,
+		Host:    hc.address,
 	}
 
 	return hc.Do(request)
 }
 
 func Raw_http_parsing_docker_socket(docker_socket string) (Response, error) {
-
-	socket, err := dial(docker_socket)
-
+	client, err := NewHttpClient(docker_socket)
 	if err != nil {
-		slog.Error("Unable to connect to socket", "err", err)
-		return Response{}, nil
+		return Response{}, err
 	}
-
-	client := HttpClient{socket}
 
 	defer client.Close()
 	return client.Get("http://localhost/containers/json")
@@ -158,6 +174,10 @@ func parseResponse(conn io.Reader) (Response, error) {
 	buf := make([]byte, content_length)
 
 	_, err = limit_reader.Read(buf)
+
+	if err == io.EOF {
+		return resp, nil
+	}
 
 	if err != nil {
 		return Response{}, nil

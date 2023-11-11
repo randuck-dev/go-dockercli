@@ -3,26 +3,21 @@ package main
 import (
 	"http-parser/internal/http"
 	"log/slog"
-	"net"
 )
 
 func main() {
 
-	conn, err := net.Dial("tcp", "example.com:80")
+	c, err := http.NewHttpClient("example.com:80")
 	if err != nil {
-		slog.Error("Unable to dial", "err", err)
+		slog.Error("Error while creating client", "err", err)
 		return
 	}
 
-	c := http.HttpClient{
-		Conn: conn,
-	}
-
-	resp, err := c.Get("example.com")
+	resp, err := c.Get("/")
 	if err != nil {
 		slog.Error("Error getting data from uri", "err", err)
 		return
 	}
 
-	slog.Info("received data", "data", resp)
+	slog.Info("received data", "body", string(resp.Body))
 }

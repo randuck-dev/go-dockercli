@@ -19,7 +19,37 @@ func XyzHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "HEAD" {
-		w.WriteHeader(200)
+		w.WriteHeader(HttpStatusCodeOK)
+	}
+
+	w.WriteHeader(HttpStatusCodeNotFound)
+}
+
+func PermanentlyMovedHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		w.Header().Add("Location", "/redirecttarget")
+		w.WriteHeader(HttpStatusCodeMovedPermanently)
+	}
+
+	w.WriteHeader(HttpStatusCodeNotFound)
+}
+
+func TemporarilyMovedHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		w.Header().Add("Location", "/redirecttarget")
+		w.WriteHeader(HttpStatusCodeTemporaryRedirect)
+	}
+
+	w.WriteHeader(HttpStatusCodeNotFound)
+}
+
+func TargetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		resp := "RedirectTargetHandler"
+		w.Header().Add("Content-Type", "text/plain")
+		w.WriteHeader(HttpStatusCodeOK)
+
+		w.Write(([]byte(resp)))
 	}
 }
 
@@ -34,6 +64,9 @@ func BuildServer(t *testing.T) (*httptest.Server, string) {
 	t.Helper()
 	mux := http.NewServeMux()
 	mux.Handle("/", MiddleWare(http.HandlerFunc(XyzHandler)))
+	mux.Handle("/movedpermanently", MiddleWare(http.HandlerFunc(PermanentlyMovedHandler)))
+	mux.Handle("/movedtemporarily", MiddleWare(http.HandlerFunc(TemporarilyMovedHandler)))
+	mux.Handle("/redirecttarget", MiddleWare(http.HandlerFunc(TargetHandler)))
 
 	server := httptest.NewServer(mux)
 	url := strings.Split(server.URL, "://")[1]
@@ -90,7 +123,6 @@ func TestHead(t *testing.T) {
 }
 
 func TestDo(t *testing.T) {
-	return
 	request := Request{
 		Method: "INVALID",
 	}
@@ -102,6 +134,58 @@ func TestDo(t *testing.T) {
 	if err != ErrImplementationDoesNotSupportMethod {
 		t.Errorf("got %s want %s", err, ErrImplementationDoesNotSupportMethod)
 	}
+}
+
+func TestRedirect(t *testing.T) {
+	t.Run("moved permanently", func(t *testing.T) {
+		server, url := BuildServer(t)
+		http_client, err := NewHttpClient(url)
+
+		if err != nil {
+			t.Errorf("unexpected error when creating http client %s", err)
+		}
+		defer server.Close()
+		resp, err := http_client.Get("/movedpermanently")
+
+		if err != nil {
+			t.Errorf("Unexpected error %s", err)
+		}
+
+		if !resp.Ok() {
+			t.Errorf("got %d want %d", resp.StatusLine.StatusCode, HttpStatusCodeOK)
+		}
+
+		body := string(resp.Body)
+
+		if body != "RedirectTargetHandler" {
+			t.Errorf("got %s want %s", body, "RedirectTargetHandler")
+		}
+	})
+
+	t.Run("moved temporarily", func(t *testing.T) {
+		server, url := BuildServer(t)
+		http_client, err := NewHttpClient(url)
+
+		if err != nil {
+			t.Errorf("unexpected error when creating http client %s", err)
+		}
+		defer server.Close()
+		resp, err := http_client.Get("/movedtemporarily")
+
+		if err != nil {
+			t.Errorf("Unexpected error %s", err)
+		}
+
+		if !resp.Ok() {
+			t.Errorf("got %d want %d", resp.StatusLine.StatusCode, HttpStatusCodeOK)
+		}
+
+		body := string(resp.Body)
+
+		if body != "RedirectTargetHandler" {
+			t.Errorf("got %s want %s", body, "RedirectTargetHandler")
+		}
+	})
 }
 
 func TestParseResponse(t *testing.T) {
@@ -117,8 +201,8 @@ func TestParseResponse(t *testing.T) {
 			t.Errorf("got %s want %s", resp.StatusLine.HttpVersion, HTTP11)
 		}
 
-		if resp.StatusLine.StatusCode != 200 {
-			t.Errorf("got %d want %d", resp.StatusLine.StatusCode, 200)
+		if resp.StatusLine.StatusCode != HttpStatusCodeOK {
+			t.Errorf("got %d want %d", resp.StatusLine.StatusCode, HttpStatusCodeOK)
 		}
 
 		if resp.StatusLine.ReasonPhrase != "OK" {

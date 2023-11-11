@@ -14,4 +14,19 @@ This is built purely for educational purposes as to get a deeper understanding f
 
 ## Example of using the library
 
-https://github.com/randuck-dev/http-parser/blob/4d9d4dbcfc9473eee11ea78edcbce3e33068fc18/cmd/externals/externals.go#L1
+
+```go
+c, err := http.NewHttpClient("example.com:80")
+if err != nil {
+  slog.Error("Error while creating http client", "err", err)
+  return
+}
+
+resp, err := c.Get("/")
+if err != nil {
+  slog.Error("Error calling GET on uri", "err", err)
+  return
+}
+
+slog.Info("Received response", "body", string(resp.Body))
+```
